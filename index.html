@@ -2,140 +2,75 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Hoodie 工厂 - 原型版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoodie 工厂 - 姨妈的地下室</title>
     <style>
-        body { background: #1a1a1a; color: #eee; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #game-container { width: 400px; border: 2px solid #444; padding: 20px; border-radius: 8px; background: #222; text-align: center; }
-        .status-bar { display: flex; justify-content: space-between; margin-bottom: 20px; background: #333; padding: 10px; border-radius: 4px; font-weight: bold; }
-        .scene { height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed #666; margin-bottom: 20px; font-size: 1.2rem; transition: all 0.5s; }
-        .btn { background: #444; color: white; border: none; padding: 10px 15px; cursor: pointer; margin: 5px; border-radius: 4px; }
-        .btn:hover { background: #666; }
-        .btn:disabled { background: #222; color: #555; cursor: not-allowed; }
-        .factory-on { background: #4a332d; border-color: #ff5722; }
-        #log { font-size: 0.8rem; color: #888; height: 60px; overflow-y: auto; text-align: left; border-top: 1px solid #333; padding-top: 10px; }
+        :root { --accent: #ff5722; --bg: #1a1a1a; }
+        body { background: var(--bg); color: #eee; font-family: sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        #game-container { width: 100%; max-width: 400px; background: #2a2a2a; border-radius: 20px; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid #444; }
+        .status-bar { display: flex; justify-content: space-around; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; font-size: 0.9rem; }
+        .scene-display { height: 160px; border-radius: 15px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.6s; border: 2px solid #333; font-size: 1.6rem; font-weight: 900; }
+        .scene-bedroom { background: linear-gradient(135deg, #2e3192, #1bffff); } 
+        .scene-street { background: linear-gradient(135deg, #303337, #485b6e); }
+        .scene-factory { background: #111; }
+        .factory-active { background: radial-gradient(circle at center, #4a2211 0%, #111 100%); border-color: var(--accent); box-shadow: inset 0 0 30px rgba(255,87,34,0.3); }
+        .aunt-bubble { background: white; color: #222; padding: 12px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 15px; border-left: 6px solid #d32f2f; }
+        .aunt-bubble::before { content: "姨妈："; font-weight: bold; color: #d32f2f; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { border: none; padding: 12px 5px; border-radius: 8px; cursor: pointer; font-weight: bold; background: #444; color: white; }
+        .main-btn { width: 100%; padding: 16px; border-radius: 12px; border: none; color: white; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-work { background: var(--accent); }
+        .btn-work:disabled { background: #333; color: #666; cursor: not-allowed; }
+        .btn-scavenge { background: #2e7d32; }
+        #log { font-size: 0.75rem; color: #888; height: 80px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; }
     </style>
 </head>
 <body>
-
-    <h2>👕 Hoodie 工厂 <small style="font-size: 0.8rem; opacity: 0.6;">v0.1</small></h2>
-
-    <div id="game-container">
-        <div class="status-bar">
-            <div id="time-display">08:00</div>
-            <div>💰 $<span id="money">0</span></div>
-            <div>📦 <span id="hoodie">0</span></div>
-        </div>
-
-        <div id="scene-box" class="scene">姨妈的次卧</div>
-
-        <div id="actions">
-            <button class="btn" onclick="move('次卧')">回次卧</button>
-            <button class="btn" onclick="move('街道')">去街上</button>
-            <button class="btn" onclick="move('工厂')">进工厂</button>
-            <hr style="border: 0.5px solid #333;">
-            <button id="work-btn" class="btn" onclick="produce()" disabled>缝制卫衣 (18:00后可用)</button>
-            <button id="scavenge-btn" class="btn" onclick="scavenge()">捡垃圾/接单</button>
-        </div>
-
-        <div id="log">姨妈：干干，起床啦，记得晚上再用生产线。</div>
+<div id="game-container">
+    <div class="status-bar">
+        <span>⏰ <span id="time">08:00</span></span>
+        <span>💰 $<span id="money">0</span></span>
+        <span>📦 <span id="stock">0</span></span>
     </div>
-
-    <script>
-        let gameState = {
-            hour: 8,
-            minute: 0,
-            money: 0,
-            hoodie: 0,
-            location: '次卧',
-            producedToday: 0
-        };
-
-        function updateUI() {
-            // 时间显示
-            const h = gameState.hour.toString().padStart(2, '0');
-            const m = gameState.minute.toString().padStart(2, '0');
-            document.getElementById('time-display').innerText = `${h}:${m}`;
-            document.getElementById('money').innerText = gameState.money;
-            document.getElementById('hoodie').innerText = gameState.hoodie;
-            document.getElementById('scene-box').innerText = gameState.location;
-
-            // 按钮逻辑：18:00 - 02:00 工厂可用
-            const isWorkingHour = (gameState.hour >= 18 || gameState.hour < 2);
-            const inFactory = gameState.location === '工厂';
-            const workBtn = document.getElementById('work-btn');
-            
-            if (inFactory && isWorkingHour && gameState.producedToday < 8) {
-                workBtn.disabled = false;
-                document.getElementById('scene-box').classList.add('factory-on');
-            } else {
-                workBtn.disabled = true;
-                document.getElementById('scene-box').classList.remove('factory-on');
-            }
-
-            // 强制睡眠检测
-            if (gameState.hour === 2 && gameState.minute === 0 && gameState.location !== '次卧') {
-                addLog("太晚了！你晕倒在路边被送回了次卧...");
-                gameState.location = '次卧';
-                gameState.money = Math.max(0, gameState.money - 5); // 罚款
-                passTime(360); // 直接跳到早上 8 点
-            }
-        }
-
-        function passTime(mins) {
-            gameState.minute += mins;
-            while (gameState.minute >= 60) {
-                gameState.minute -= 60;
-                gameState.hour += 1;
-            }
-            if (gameState.hour >= 24) {
-                gameState.hour -= 24;
-                gameState.producedToday = 0; // 新的一天重置产量
-                addLog("新的一天开始了。");
-            }
-            updateUI();
-        }
-
-        function move(loc) {
-            if (loc === '工厂' && !(gameState.hour >= 18 || gameState.hour < 2)) {
-                addLog("工厂还没到使用时间呢。");
-                return;
-            }
-            gameState.location = loc;
-            addLog(`移动到了 ${loc}`);
-            passTime(10);
-        }
-
-        function produce() {
-            if (gameState.producedToday < 8) {
-                gameState.hoodie += 1;
-                gameState.producedToday += 1;
-                addLog(`缝制了一件卫衣 (今日: ${gameState.producedToday}/8)`);
-                passTime(45); // 缝一件要 45 分钟
-            } else {
-                addLog("今天的生产配额用完了。");
-            }
-        }
-
-        function scavenge() {
-            if (gameState.location !== '街道') {
-                addLog("只有在街上才能捡垃圾或接单。");
-                return;
-            }
-            let earn = Math.floor(Math.random() * 10);
-            gameState.money += earn;
-            addLog(`你在街上忙活了一阵，赚了 $${earn}`);
-            passTime(60);
-        }
-
-        function addLog(msg) {
-            const log = document.getElementById('log');
-            log.innerHTML = `> ${msg}<br>${log.innerHTML}`;
-        }
-
-        // 模拟时间流逝（每 2 秒游戏内过 15 分钟）
-        setInterval(() => passTime(5), 2000);
-
-        updateUI();
-    </script>
+    <div id="scene-box" class="scene-display scene-bedroom">姨妈的次卧</div>
+    <div id="aunt-msg" class="aunt-bubble">干干，醒了就快去街上转转，别在家赖着！</div>
+    <div class="btn-grid">
+        <button class="btn" onclick="goTo('次卧')">🛌 次卧</button>
+        <button class="btn" onclick="goTo('街道')">🛣️ 街道</button>
+        <button class="btn" onclick="goTo('工厂')">🏭 工厂</button>
+    </div>
+    <button id="work-btn" class="main-btn btn-work" onclick="produce()">🧵 缝制卫衣 (18点后可用)</button>
+    <button class="main-btn btn-scavenge" onclick="scavenge()">🔍 捡垃圾 / 接单</button>
+    <div id="log"></div>
+</div>
+<script>
+    let game = { h: 8, m: 0, money: 0, stock: 0, loc: '次卧', daily: 0 };
+    function update() {
+        document.getElementById('time').innerText = `${game.h.toString().padStart(2,'0')}:${game.m.toString().padStart(2,'0')}`;
+        document.getElementById('money').innerText = game.money;
+        document.getElementById('stock').innerText = game.stock;
+        const box = document.getElementById('scene-box');
+        const aunt = document.getElementById('aunt-msg');
+        const workBtn = document.getElementById('work-btn');
+        box.className = 'scene-display'; box.innerText = game.loc;
+        if(game.loc === '次卧') box.classList.add('scene-bedroom');
+        if(game.loc === '街道') box.classList.add('scene-street');
+        if(game.loc === '工厂') box.classList.add('scene-factory');
+        const isTime = game.h >= 18 || game.h < 2;
+        if(game.loc === '工厂') {
+            if(isTime) { box.classList.add('factory-active'); aunt.innerText = "快，趁没人发现赶快生产！"; workBtn.disabled = false; }
+            else { aunt.innerText = "没到点呢，别碰我的机器！"; workBtn.disabled = true; }
+        } else if(game.loc === '次卧') { aunt.innerText = "好好休息，攒足体力晚上去工厂。"; workBtn.disabled = true;
+        } else { aunt.innerText = "在外面机灵点，多攒点钱买布料。"; workBtn.disabled = true; }
+        if(game.h === 2 && game.m === 0 && game.loc !== '次卧') { alert("2点啦！强行回家睡觉！"); game.loc = '次卧'; game.h = 8; game.m = 0; update(); }
+    }
+    function goTo(p) { game.loc = p; addLog(`移动到了 ${p}`); tick(15); }
+    function produce() { if(game.daily < 8) { game.stock++; game.daily++; addLog("缝制了一件设计款卫衣"); tick(45); } else { addLog("今天产量极限了"); } }
+    function scavenge() { if(game.loc !== '街道') return alert("去街上捡！"); let e = Math.floor(Math.random()*10); game.money += e; addLog(`捡垃圾赚了 $${e}`); tick(60); }
+    function tick(m) { game.m += m; if(game.m >= 60) { game.m -= 60; game.h++; } if(game.h >= 24) { game.h = 0; game.daily = 0; } update(); }
+    function addLog(msg) { const l = document.getElementById('log'); l.innerHTML = `<div>> ${msg}</div>` + l.innerHTML; }
+    setInterval(() => tick(1), 2000);
+    update();
+</script>
 </body>
 </html>
